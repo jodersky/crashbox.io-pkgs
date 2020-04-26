@@ -8,7 +8,12 @@ object dummy extends debian.StdControl with debian.Systemd {
     debian.SystemdUnit("dummy.service", "")
   )
   def buildScript = "echo hello world > dummy"
-  def writes = super.writes() ++ Agg("foo" -> "yo")
+  def writes = super.writes() ++ Agg("foo" -> "yoa")
+
+  def a = T.source(os.pwd / "wget.sc")
+
+  def installs = super.installs() ++ Agg("ok" -> a())
+
 }
 
 // object prometheus extends debian.StdControl with debian.StdBuild {

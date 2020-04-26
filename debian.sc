@@ -1,7 +1,7 @@
 /** Basic binary package */
 trait Deb extends mill.Module {
 
-  def installs: T[Agg[(String, os.Path)]] = T{Agg()}
+  def installs: T[Agg[(String, PathRef)]] = T{Agg()}
   def writes: T[Agg[(String, String)]] = T{Agg()}
   
   def control: T[String]
@@ -9,20 +9,20 @@ trait Deb extends mill.Module {
   def postrm: T[String] = ""
   def prerm: T[String] = ""
 
-  def rootfs: T[os.Path] = T {
-    for ((archivePath, file) <- installs()) {
-      os.copy.over(file, T.ctx.dest / os.SubPath(archivePath), createFolders = true)
+  def rootfs: T[PathRef] = T {
+    for ((archivePath, ref) <- installs()) {
+      os.copy.over(ref.path, T.ctx.dest / os.SubPath(archivePath), createFolders = true)
     }
     for ((archivePath, content) <- writes()) {
       os.write.over(T.ctx.dest / os.SubPath(archivePath), content, createFolders = true)
     }
-    T.ctx.dest
+    PathRef(T.ctx.dest)
   }
 
-  def deb: T[os.Path] = T {
-    require(os.isDir(rootfs()), "rootfs must return a directory")
+  def deb: T[PathRef] = T {
+    println("packaging")
 
-    val DEBIAN = rootfs() / "DEBIAN"
+    val DEBIAN = rootfs().path / "DEBIAN"
     os.write.over(DEBIAN / "control", control(), createFolders = true)
 
     if (postinst() != "") {
@@ -35,13 +35,13 @@ trait Deb extends mill.Module {
       os.write.over(DEBIAN / "prerm", "#!/bin/sh\nset -e\n" + prerm(), perms = "rwxr-xr-x", createFolders = true)
     }
 
-    if (os.exists(rootfs() / "etc")) {
-      val conffiles = os.walk(rootfs() / "etc").map(_.relativeTo(rootfs()))
+    if (os.exists(rootfs().path / "etc")) {
+      val conffiles = os.walk(rootfs().path / "etc").map(_.relativeTo(rootfs().path))
       os.write.over(DEBIAN / "conffiles", conffiles.map(f => s"/$f\n").mkString)
     }
 
     val out = T.ctx().dest / "out.deb"
-    os.proc("fakeroot", "dpkg-deb", "-Zgzip", "--build", rootfs(), out).call()
+    os.proc("fakeroot", "dpkg-deb", "-Zgzip", "--build", rootfs().path, out).call()
     os.proc(
       "lintian", "--info",
       "--suppress-tags", "no-copyright-file",
@@ -50,7 +50,7 @@ trait Deb extends mill.Module {
 		  "--suppress-tags", "changelog-file-missing-in-native-package",
       out
     ).call(stdout = os.Inherit)
-    out
+    PathRef(out)
   }
 }
 
