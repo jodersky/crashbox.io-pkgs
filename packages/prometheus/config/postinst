@@ -1,0 +1,4 @@
+if [ "$1" = "configure" ]; then
+    adduser --quiet --system --home /var/lib/prometheus --no-create-home \
+            --group prometheus || true
+fi

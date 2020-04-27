@@ -1,42 +1,38 @@
-import $file.debian
-import mill._
+import $file.lib.debian
+import $file.lib.util
+import $file.lib.tool
 
-object dummy extends debian.StdControl with debian.Systemd {
-  def version = "0.0.1"
-  def description = "test package"
-  def units = Agg(
-    debian.SystemdUnit("dummy.service", "")
-  )
-  def buildScript = "echo hello world > dummy"
-  def writes = super.writes() ++ Agg("foo" -> "yoa")
+object packages extends mill.Module {
 
-  def a = T.source(os.pwd / "wget.sc")
+  object dummy extends debian.Package {
+    def version = "0.0.1"
+    def description = "test package"
+    def debianDeps = Agg("adduser")
+  }
 
-  def installs = super.installs() ++ Agg("ok" -> a())
+  object prometheus extends debian.Package with tool.SourceTarball {
+    def version = "2.17.2"
+    def description = "monitoring tool"
+    def url = s"https://github.com/prometheus/prometheus/archive/v${version()}.tar.gz"
+    def buildSteps = "make build && strip prometheus && strip promtool"
+    def installs = super.installs() ++ Agg(
+      "usr/bin/prometheus" -> PathRef(build().path / "prometheus"),
+      "usr/bin/promtool" -> PathRef(build().path / "promtool")
+    )
+    def lintianIgnores = super.lintianIgnores() ++ Agg("statically-linked-binary")
+    def debianDeps = Agg("adduser")
+  }
+
+  object alertmanager extends debian.Package with tool.SourceTarball {
+    def version = "0.20.0"
+    def description = "prometheus alertmanager"
+    def url = s"https://github.com/prometheus/alertmanager/archive/v${version()}.tar.gz"
+    def buildSteps = "make build && strip alertmanager && strip amtool"
+    def installs = super.installs() ++ Agg(
+      "usr/bin/alertmanager" -> PathRef(build().path / "alertmanager"),
+      "usr/bin/amtool" -> PathRef(build().path / "amtool")
+    )
+    def lintianIgnores = super.lintianIgnores() ++ Agg("statically-linked-binary")
+  }
 
 }
-
-// object prometheus extends debian.StdControl with debian.StdBuild {
-  
-//   def version = "2.17.2"
-//   def description = "monitoring system"
-
-//   def sources = T.persistent{
-//     os.proc("wget",
-//       s"https://github.com/prometheus/prometheus/archive/v${version()}.tar.gz", "-O",
-//       T.ctx.dest / "src.tar.gz"
-//     ).call()
-//     os.proc(
-//       "tar", "xzf", T.ctx().dest / "src.tar.gz"
-//     ).call(cwd = T.ctx.dest)
-//     T.ctx.dest / s"prometheus-${version()}"
-//   }
-
-//   def buildScript = """make build"""
-  
-//   def rootfs = T {
-//     os.copy(build() / "prometheus", T.ctx.dest / "usr" / "bin" / "promethus", createFolders = true)
-//     T.ctx.dest
-//   }
-
-// }
